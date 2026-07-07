@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatApp</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-icon"><i class="fas fa-robot"></i></div>
+      <h2 class="login-title">ChatApp</h2>
+      <p class="login-subtitle">Devam etmek için giriş yapın</p>
+      <input type="text" class="login-input" id="loginUsername" placeholder="Kullanıcı Adı" autocomplete="off" />
+      <input type="password" class="login-input" id="loginPassword" placeholder="Şifre" />
+      <p class="login-error" id="loginError"></p>
+      <button class="login-btn" id="loginBtn">Giriş Yap</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-header">
+          <h2>ChatApp</h2>
+        </div>
+        <nav class="sidebar-nav">
+          <button class="nav-btn active" title="Yeni Sohbet"><i class="fas fa-plus"></i></button>
+          <button class="nav-btn" title="Sohbet Geçmişi"><i class="fas fa-clock-rotate"></i></button>
+          <button class="nav-btn" title="Ayarlar"><i class="fas fa-gear"></i></button>
+        </nav>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="sidebar-user-btn" title="Kullanıcı">
+          <i class="fas fa-user"></i>
+        </button>
+      </div>
+    </aside>
+
+    <aside class="history-panel" id="historyPanel">
+      <div class="history-header">
+        <h3 class="history-title">Sohbet Geçmişi</h3>
+        <button class="history-close" id="historyClose" title="Kapat"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+      <button class="history-clear-btn" id="historyClearBtn" title="Tüm geçmişi sil"><i class="fas fa-trash-can"></i> Geçmişi Temizle</button>
+    </aside>
+
+    <main class="main">
+      <header class="chat-header">
+        <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
+        <h1 class="app-title">ChatApp</h1>
+        <div class="header-spacer"></div>
+      </header>
+
+      <section class="chat-messages" id="chatMessages">
+        <div class="typing-indicator" id="typingIndicator">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+      </section>
+
+      <footer class="chat-input-area">
+        <div class="input-wrapper">
+          <button class="icon-btn" id="fileBtn" title="Dosya Yükle"><i class="fas fa-paperclip"></i></button>
+          <input type="text" class="msg-input" id="msgInput" placeholder="Mesajınızı yazın..." autofocus />
+          <button class="icon-btn" id="micBtn" title="Sesli Mesaj"><i class="fas fa-microphone"></i></button>
+          <button class="send-btn" id="sendBtn" title="Gönder"><i class="fas fa-paper-plane"></i></button>
+        </div>
+        <input type="file" id="fileInput" hidden />
+      </footer>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
