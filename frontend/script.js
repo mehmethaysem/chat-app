@@ -3,23 +3,21 @@ document.addEventListener("DOMContentLoaded", () => {
   // ——— Login ———
   const loginOverlay = document.getElementById("loginOverlay");
   const loginUsername = document.getElementById("loginUsername");
-  const loginPassword = document.getElementById("loginPassword");
   const loginBtn = document.getElementById("loginBtn");
   const loginError = document.getElementById("loginError");
 
   function handleLogin() {
     const user = loginUsername.value.trim();
-    const pass = loginPassword.value.trim();
-    if (user === "admin" && pass === "1234") {
+    if (user === "admin") {
       loginOverlay.classList.add("hidden");
       loginError.textContent = "";
     } else {
-      loginError.textContent = "Kullanıcı adı veya şifre hatalı.";
+      loginError.textContent = "Kullanıcı adı hatalı.";
     }
   }
 
   loginBtn.addEventListener("click", handleLogin);
-  loginPassword.addEventListener("keydown", (e) => {
+  loginUsername.addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); handleLogin(); }
   });
 
@@ -179,7 +177,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .catch(() => {
         typingIndicator.classList.remove("active");
-        addMessage("Sunucuya bağlanılamadı.", "assistant");
+        addMessage("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant");
       });
   }
 
@@ -284,7 +282,7 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .catch(() => {
         typingIndicator.classList.remove("active");
-        addMessage("Sunucuya bağlanılamadı.", "assistant");
+        addMessage("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant");
       });
 
     fileInput.value = "";
