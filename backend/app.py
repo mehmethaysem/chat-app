@@ -29,20 +29,25 @@ if OPENROUTER_API_KEY:
 else:
     print("[OpenRouter] UYARI: OPENROUTER_API_KEY .env dosyasında bulunamadı!")
 
+conversation_history = [
+    {
+        "role": "system",
+        "content": "Sen Chat App isimli yapay zeka asistanısın. Her zaman Türkçe cevap ver. Yardımsever, doğru ve anlaşılır cevaplar üret."
+    }
+]
 
-def try_openrouter(user_message, model_name):
+
+def try_openrouter(messages, model_name):
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:5000",
+        "HTTP-Referer": "http://localhost:5555",
         "X-Title": "Chat App",
     }
 
     payload = {
         "model": model_name,
-        "messages": [
-            {"role": "user", "content": user_message},
-        ],
+        "messages": messages,
     }
 
     print(f"\n[OpenRouter] Model: {model_name}")
@@ -101,11 +106,16 @@ def message():
     last_error = None
     last_status = 502
 
+    conversation_history.append({"role": "user", "content": user_message})
+    print(f"[Conversation History] Kullanıcı mesajı eklendi. Toplam mesaj: {len(conversation_history)}")
+
     for model in FALLBACK_MODELS:
         try:
-            reply, status, error_info = try_openrouter(user_message, model)
+            reply, status, error_info = try_openrouter(conversation_history, model)
 
             if reply is not None:
+                conversation_history.append({"role": "assistant", "content": reply})
+                print(f"[Conversation History] Asistan cevabı eklendi. Toplam mesaj: {len(conversation_history)}")
                 return jsonify({"reply": reply, "model": model}), 200
 
             last_status = status
@@ -146,4 +156,4 @@ def upload():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5555, debug=True)

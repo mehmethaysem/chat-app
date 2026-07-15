@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatApp</title>
+  <title>Chat App</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body>
   <div class="login-overlay" id="loginOverlay">
     <div class="login-card">
-      <div class="login-icon"><i class="fas fa-robot"></i></div>
-      <h2 class="login-title">ChatApp</h2>
+      <div class="login-icon"><i class="fas fa-comment-dots"></i></div>
+      <h2 class="login-title">Chat App</h2>
       <p class="login-subtitle">Devam etmek için giriş yapın</p>
       <input type="text" class="login-input" id="loginUsername" placeholder="Kullanıcı Adı" autocomplete="off" />
       <p class="login-error" id="loginError"></p>
@@ -21,18 +21,30 @@
 
   <div class="app">
     <aside class="sidebar">
-      <div class="sidebar-top">
-        <div class="sidebar-header">
-          <h2>ChatApp</h2>
+      <div class="sidebar-brand">
+        <i class="fas fa-comment-dots sidebar-brand-icon"></i>
+        <span class="sidebar-brand-text">Chat App</span>
+      </div>
+      <div class="sidebar-section">
+        <button class="nav-btn active" title="Yeni Sohbet">
+          <i class="fas fa-plus"></i>
+          <span class="nav-btn-label">New Chat</span>
+        </button>
+        <button class="nav-btn" title="Sohbet Geçmişi" id="historyToggleBtn">
+          <i class="fas fa-clock-rotate"></i>
+          <span class="nav-btn-label">History</span>
+        </button>
+        <div class="sidebar-search">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-input" placeholder="Search..." disabled />
         </div>
-        <nav class="sidebar-nav">
-          <button class="nav-btn active" title="Yeni Sohbet"><i class="fas fa-plus"></i></button>
-          <button class="nav-btn" title="Sohbet Geçmişi"><i class="fas fa-clock-rotate"></i></button>
-          <button class="nav-btn" title="Ayarlar"><i class="fas fa-gear"></i></button>
-        </nav>
+        <button class="nav-btn clear-history-nav" title="Geçmişi Temizle" id="historyClearBtn">
+          <i class="fas fa-trash-can"></i>
+          <span class="nav-btn-label">Clear History</span>
+        </button>
       </div>
       <div class="sidebar-bottom">
-        <button class="sidebar-user-btn" title="Kullanıcı">
+        <button class="sidebar-user-btn">
           <i class="fas fa-user"></i>
         </button>
       </div>
@@ -44,14 +56,14 @@
         <button class="history-close" id="historyClose" title="Kapat"><i class="fas fa-times"></i></button>
       </div>
       <div class="history-list" id="historyList"></div>
-      <button class="history-clear-btn" id="historyClearBtn" title="Tüm geçmişi sil"><i class="fas fa-trash-can"></i> Geçmişi Temizle</button>
     </aside>
 
     <main class="main">
       <header class="chat-header">
         <button class="menu-toggle" id="menuToggle"><i class="fas fa-bars"></i></button>
-        <h1 class="app-title">ChatApp</h1>
+        <h1 class="app-title">Chat App</h1>
         <div class="header-spacer"></div>
+        <span class="model-badge">tencent/hy3</span>
       </header>
 
       <section class="chat-messages" id="chatMessages">
@@ -65,9 +77,9 @@
       <footer class="chat-input-area">
         <div class="input-wrapper">
           <button class="icon-btn" id="fileBtn" title="Dosya Yükle"><i class="fas fa-paperclip"></i></button>
-          <input type="text" class="msg-input" id="msgInput" placeholder="Mesajınızı yazın..." autofocus />
+          <input type="text" class="msg-input" id="msgInput" placeholder="Send a message..." autofocus />
           <button class="icon-btn" id="micBtn" title="Sesli Mesaj"><i class="fas fa-microphone"></i></button>
-          <button class="send-btn" id="sendBtn" title="Gönder"><i class="fas fa-paper-plane"></i></button>
+          <button class="send-btn" id="sendBtn" title="Gönder"><i class="fas fa-arrow-up"></i></button>
         </div>
         <input type="file" id="fileInput" hidden />
       </footer>

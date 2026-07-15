@@ -165,7 +165,7 @@ document.addEventListener("DOMContentLoaded", () => {
     typingIndicator.classList.add("active");
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    fetch("http://localhost:5000/message", {
+    fetch("http://localhost:5555/message", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text }),
@@ -275,7 +275,7 @@ document.addEventListener("DOMContentLoaded", () => {
     typingIndicator.classList.add("active");
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    fetch("http://localhost:5000/upload", {
+    fetch("http://localhost:5555/upload", {
       method: "POST",
       body: formData,
     })
