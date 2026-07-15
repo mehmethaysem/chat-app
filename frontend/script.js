@@ -173,7 +173,11 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((res) => res.json())
       .then((data) => {
         typingIndicator.classList.remove("active");
-        addMessage(data.reply, "assistant");
+        if (data.error) {
+          addMessage("Hata: " + data.error, "assistant");
+        } else {
+          addMessage(data.reply || "Yanıt alınamadı.", "assistant");
+        }
       })
       .catch(() => {
         typingIndicator.classList.remove("active");
@@ -278,7 +282,11 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((res) => res.json())
       .then((data) => {
         typingIndicator.classList.remove("active");
-        addMessage(data.reply, "assistant");
+        if (data.error) {
+          addMessage("Hata: " + data.error, "assistant");
+        } else {
+          addMessage(data.reply || "Yanıt alınamadı.", "assistant");
+        }
       })
       .catch(() => {
         typingIndicator.classList.remove("active");
