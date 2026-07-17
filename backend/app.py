@@ -16,12 +16,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
-FALLBACK_MODELS = [
-    "tencent/hy3:free",
-    "openrouter/free",
-    "deepseek/deepseek-r1-0528:free",
-    "qwen/qwen3-32b:free",
-    "mistralai/mistral-7b-instruct:free",
+DEFAULT_MODEL = "openai/gpt-4.1-mini"
+
+AVAILABLE_MODELS = [
+    {"id": "openai/gpt-4.1-mini", "name": "GPT-4.1 Mini"},
+    {"id": "google/gemini-2.5-flash", "name": "Gemini 2.5 Flash"},
+    {"id": "qwen/qwen3-32b", "name": "Qwen 3 32B"},
+    {"id": "deepseek/deepseek-chat-v3", "name": "DeepSeek Chat V3"},
 ]
 
 if OPENROUTER_API_KEY:
@@ -48,6 +49,7 @@ def try_openrouter(messages, model_name):
     payload = {
         "model": model_name,
         "messages": messages,
+        "max_tokens": 1024,
     }
 
     print(f"\n[OpenRouter] Model: {model_name}")
@@ -91,10 +93,16 @@ def try_openrouter(messages, model_name):
     return reply, 200, None
 
 
+@app.route("/models", methods=["GET"])
+def get_models():
+    return jsonify(AVAILABLE_MODELS), 200
+
+
 @app.route("/message", methods=["POST"])
 def message():
     data = request.get_json()
     user_message = data.get("message")
+    model = data.get("model", DEFAULT_MODEL)
 
     if not user_message:
         return jsonify({"error": "Mesaj alanı boş."}), 400
@@ -103,43 +111,28 @@ def message():
         print("[OpenRouter] API Key eksik, istek gönderilemedi.")
         return jsonify({"error": "OpenRouter API anahtarı .env dosyasında tanımlı değil."}), 500
 
-    last_error = None
-    last_status = 502
-
     conversation_history.append({"role": "user", "content": user_message})
     print(f"[Conversation History] Kullanıcı mesajı eklendi. Toplam mesaj: {len(conversation_history)}")
 
-    for model in FALLBACK_MODELS:
-        try:
-            reply, status, error_info = try_openrouter(conversation_history, model)
+    try:
+        reply, status, error_info = try_openrouter(conversation_history, model)
 
-            if reply is not None:
-                conversation_history.append({"role": "assistant", "content": reply})
-                print(f"[Conversation History] Asistan cevabı eklendi. Toplam mesaj: {len(conversation_history)}")
-                return jsonify({"reply": reply, "model": model}), 200
+        if reply is not None:
+            conversation_history.append({"role": "assistant", "content": reply})
+            print(f"[Conversation History] Asistan cevabı eklendi. Toplam mesaj: {len(conversation_history)}")
+            return jsonify({"reply": reply, "model": model}), 200
 
-            last_status = status
-            last_error = error_info
+        return jsonify(error_info), status
 
-            if status != 429:
-                return jsonify(error_info), status
-
-            print(f"[OpenRouter] 429 alındı, sonraki modele geçiliyor: {model}")
-
-        except requests.exceptions.Timeout:
-            print(f"[OpenRouter] Zaman aşımı - model: {model}")
-            last_status = 504
-            last_error = {"error": f"OpenRouter API zaman aşımına uğradı (model: {model})."}
-        except requests.exceptions.RequestException as e:
-            print(f"[OpenRouter] Bağlantı hatası - model: {model}: {str(e)}")
-            last_status = 502
-            last_error = {"error": f"OpenRouter bağlantı hatası (model: {model}): {str(e)}"}
-        except (KeyError, IndexError) as e:
-            print(f"[OpenRouter] Beklenmeyen yanıt formatı - model: {model}: {str(e)}")
-            last_status = 502
-            last_error = {"error": f"API yanıtı beklenen formatta değil (model: {model}): {str(e)}"}
-
-    return jsonify(last_error), last_status
+    except requests.exceptions.Timeout:
+        print(f"[OpenRouter] Zaman aşımı - model: {model}")
+        return jsonify({"error": f"OpenRouter API zaman aşımına uğradı (model: {model})."}), 504
+    except requests.exceptions.RequestException as e:
+        print(f"[OpenRouter] Bağlantı hatası - model: {model}: {str(e)}")
+        return jsonify({"error": f"OpenRouter bağlantı hatası (model: {model}): {str(e)}"}), 502
+    except (KeyError, IndexError) as e:
+        print(f"[OpenRouter] Beklenmeyen yanıt formatı - model: {model}: {str(e)}")
+        return jsonify({"error": f"API yanıtı beklenen formatta değil (model: {model}): {str(e)}"}), 502
 
 
 @app.route("/upload", methods=["POST"])
