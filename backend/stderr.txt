@@ -6,3 +6,9 @@ Press CTRL+C to quit
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 132-024-122
+127.0.0.1 - - [17/Jul/2026 16:33:49] "OPTIONS /message HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 16:33:51] "POST /message HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 16:41:18] "OPTIONS /message HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 16:41:20] "POST /message HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 16:41:23] "OPTIONS /message HTTP/1.1" 200 -
+127.0.0.1 - - [17/Jul/2026 16:41:25] "POST /message HTTP/1.1" 200 -
