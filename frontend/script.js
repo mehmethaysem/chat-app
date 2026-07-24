@@ -22,6 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchPanelResults = document.getElementById("searchPanelResults");
   const searchPanelClose = document.getElementById("searchPanelClose");
 
+  let searchMode = "text";
+
+  const API_BASE = "http://localhost:5555";
+
   const AVAILABLE_MODELS = [
     { id: "openai/gpt-4.1-mini", name: "GPT-4.1 Mini" },
     { id: "google/gemini-2.5-flash", name: "Gemini 2.5 Flash" },
@@ -33,27 +37,21 @@ document.addEventListener("DOMContentLoaded", () => {
   let chats = [];
   let activeChatId = null;
 
-  function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  }
-
   function now() {
     return new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
   }
 
-  function saveChats() {
-    localStorage.setItem("chats", JSON.stringify(chats));
-    localStorage.setItem("activeChatId", activeChatId);
-  }
-
-  function loadChats() {
-    const stored = localStorage.getItem("chats");
-    chats = stored ? JSON.parse(stored) : [];
-    activeChatId = localStorage.getItem("activeChatId") || null;
-  }
-
   function getActiveChat() {
     return chats.find((c) => c.id === activeChatId) || null;
+  }
+
+  // ——— API ———
+  async function apiFetch(url, options = {}) {
+    const res = await fetch(API_BASE + url, {
+      headers: { "Content-Type": "application/json", ...options.headers },
+      ...options,
+    });
+    return res.json();
   }
 
   // ——— Model ———
@@ -139,41 +137,65 @@ document.addEventListener("DOMContentLoaded", () => {
     return div.innerHTML;
   }
 
-  function switchChat(id) {
+  async function switchChat(id) {
     const chat = chats.find((c) => c.id === id);
     if (!chat) return;
     activeChatId = chat.id;
-    saveChats();
+    localStorage.setItem("activeChatId", activeChatId);
     renderHistory();
-    renderMessages(chat);
+    clearMessagesDOM();
     typingIndicator.classList.remove("active");
+
+    try {
+      const messages = await apiFetch(`/chats/${id}/messages`);
+      messages.forEach((msg) => {
+        addMessageToDOM(msg.content, msg.role, now());
+      });
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    } catch {
+      addMessageToDOM("Mesajlar yüklenirken hata oluştu.", "assistant", now());
+    }
   }
 
-  function renderMessages(chat) {
+  function clearMessagesDOM() {
     chatMessages.querySelectorAll(":scope > .message").forEach((el) => el.remove());
-    chat.messages.forEach((msg) => {
-      addMessageToDOM(msg.content, msg.sender, msg.time);
-    });
-    chatMessages.scrollTop = chatMessages.scrollHeight;
   }
 
-  function newChat() {
-    const id = generateId();
-    const chat = {
-      id,
-      title: "Yeni Sohbet",
-      messages: [],
-    };
-    chats.push(chat);
-    activeChatId = id;
-    saveChats();
-    renderHistory();
-    renderMessages(chat);
-    historyPanel.classList.remove("open");
-    navBtns.forEach((b) => b.classList.remove("active"));
-    navBtns[0].classList.add("active");
-    typingIndicator.classList.remove("active");
-    msgInput.focus();
+  async function newChat() {
+    try {
+      const chat = await apiFetch("/chats", { method: "POST" });
+      chats.push(chat);
+      activeChatId = chat.id;
+      localStorage.setItem("activeChatId", activeChatId);
+      renderHistory();
+      clearMessagesDOM();
+      historyPanel.classList.remove("open");
+      navBtns.forEach((b) => b.classList.remove("active"));
+      navBtns[0].classList.add("active");
+      typingIndicator.classList.remove("active");
+      msgInput.focus();
+    } catch {
+      addMessageToDOM("Yeni sohbet oluşturulamadı.", "assistant", now());
+    }
+  }
+
+  async function loadChatsFromServer() {
+    try {
+      chats = await apiFetch("/chats");
+      if (chats.length === 0) {
+        await newChat();
+        return;
+      }
+      activeChatId = localStorage.getItem("activeChatId") || null;
+      if (!activeChatId || !chats.find((c) => c.id === activeChatId)) {
+        activeChatId = chats[0].id;
+        localStorage.setItem("activeChatId", activeChatId);
+      }
+      renderHistory();
+      await switchChat(activeChatId);
+    } catch {
+      addMessageToDOM("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant", now());
+    }
   }
 
   // ——— Sidebar toggle (mobile) ———
@@ -200,21 +222,26 @@ document.addEventListener("DOMContentLoaded", () => {
     historyPanel.classList.remove("open");
   });
 
-  document.getElementById("historyClearBtn").addEventListener("click", () => {
+  document.getElementById("historyClearBtn").addEventListener("click", async () => {
+    try {
+      await apiFetch("/chats", { method: "DELETE" });
+    } catch {}
     chats = [];
     activeChatId = null;
-    localStorage.removeItem("chats");
     localStorage.removeItem("activeChatId");
     historyPanel.classList.remove("open");
     newChat();
   });
 
   // ——— Search Panel ———
+  let searchTimeout = null;
+
   function openSearchPanel() {
     searchPanel.classList.add("open");
     searchOverlay.classList.add("open");
     searchPanelInput.value = "";
     searchPanelResults.innerHTML = "";
+    updateSearchModeButtons();
     setTimeout(() => searchPanelInput.focus(), 100);
   }
 
@@ -226,7 +253,31 @@ document.addEventListener("DOMContentLoaded", () => {
     navBtns.forEach((b) => b.classList.remove("active"));
   }
 
-  function renderSearchResults(query) {
+  function updateSearchModeButtons() {
+    document.querySelectorAll(".search-mode-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.mode === searchMode);
+    });
+  }
+
+  document.querySelectorAll(".search-mode-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (btn.dataset.mode === searchMode) return;
+      searchMode = btn.dataset.mode;
+      updateSearchModeButtons();
+      searchPanelResults.innerHTML = "";
+      const val = searchPanelInput.value.trim();
+      if (val) {
+        renderSearchResults(val);
+      }
+    });
+  });
+
+  async function renderSearchResults(query) {
+    if (searchMode === "semantic") {
+      await renderSemanticSearchResults(query);
+      return;
+    }
+
     const lower = query.toLowerCase().trim();
     searchPanelResults.innerHTML = "";
 
@@ -235,44 +286,83 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    const results = [];
-    chats.forEach((chat) => {
-      const titleMatch = chat.title.toLowerCase().includes(lower);
-      const matchingMessages = chat.messages.filter((m) =>
-        m.content.toLowerCase().includes(lower)
-      );
-      if (titleMatch || matchingMessages.length > 0) {
-        results.push({ chat, titleMatch, matchingMessages });
-      }
-    });
+    try {
+      const results = await apiFetch(`/chats/search?q=${encodeURIComponent(lower)}`);
 
-    if (results.length === 0) {
-      searchPanelResults.innerHTML = '<div class="search-result-empty">No conversations found.</div>';
+      if (results.length === 0) {
+        searchPanelResults.innerHTML = '<div class="search-result-empty">No conversations found.</div>';
+        return;
+      }
+
+      results.forEach(({ id, title, matches }) => {
+        const item = document.createElement("button");
+        item.className = "search-result-item";
+        let preview = "";
+        if (matches.length > 0) {
+          const firstMatch = matches[0];
+          preview = escapeHtml(firstMatch.content.substring(0, 80)) + (firstMatch.content.length > 80 ? "..." : "");
+        }
+        item.innerHTML = `
+          <div class="search-result-title"><i class="fas fa-message"></i>${escapeHtml(title)}</div>
+          ${preview ? `<div class="search-result-preview">${preview}</div>` : ""}
+        `;
+        item.addEventListener("click", () => {
+          switchChat(id);
+          closeSearchPanel();
+        });
+        searchPanelResults.appendChild(item);
+      });
+    } catch {
+      searchPanelResults.innerHTML = '<div class="search-result-empty">Arama sırasında hata oluştu.</div>';
+    }
+  }
+
+  async function renderSemanticSearchResults(query) {
+    searchPanelResults.innerHTML = "";
+
+    if (!query.trim()) {
+      searchPanelResults.innerHTML = '<div class="search-result-empty">Type to search semantically...</div>';
       return;
     }
 
-    results.forEach(({ chat, titleMatch, matchingMessages }) => {
-      const item = document.createElement("button");
-      item.className = "search-result-item";
-      let preview = "";
-      if (matchingMessages.length > 0) {
-        const firstMatch = matchingMessages[0];
-        preview = escapeHtml(firstMatch.content.substring(0, 80)) + (firstMatch.content.length > 80 ? "..." : "");
+    try {
+      const results = await apiFetch(`/chats/search/semantic?q=${encodeURIComponent(query.trim())}`);
+
+      if (results.length === 0) {
+        searchPanelResults.innerHTML = '<div class="search-result-empty">No semantic matches found.</div>';
+        return;
       }
-      item.innerHTML = `
-        <div class="search-result-title"><i class="fas fa-message"></i>${escapeHtml(chat.title)}</div>
-        ${preview ? `<div class="search-result-preview">${preview}</div>` : ""}
-      `;
-      item.addEventListener("click", () => {
-        switchChat(chat.id);
-        closeSearchPanel();
+
+      results.forEach(({ id, chat_id, role, content, similarity, created_at }) => {
+        const item = document.createElement("button");
+        item.className = "search-result-item semantic";
+        const roleLabel = role === "user" ? "User" : "Assistant";
+        const roleIcon = role === "user" ? "fa-user" : "fa-robot";
+        const similarityPct = Math.round(similarity * 100);
+        const similarityClass = similarityPct >= 80 ? "high" : similarityPct >= 60 ? "mid" : "low";
+
+        item.innerHTML = `
+          <div class="sr-semantic-top">
+            <span class="sr-role-badge ${role}"><i class="fas ${roleIcon}"></i>${roleLabel}</span>
+            <span class="sr-similarity ${similarityClass}">${similarityPct}%</span>
+          </div>
+          <div class="sr-content">${escapeHtml(content.substring(0, 200))}${content.length > 200 ? "..." : ""}</div>
+          <div class="sr-meta">${created_at ? new Date(created_at).toLocaleString("tr-TR") : ""}</div>
+        `;
+        item.addEventListener("click", () => {
+          switchChat(chat_id);
+          closeSearchPanel();
+        });
+        searchPanelResults.appendChild(item);
       });
-      searchPanelResults.appendChild(item);
-    });
+    } catch {
+      searchPanelResults.innerHTML = '<div class="search-result-empty">Semantic search failed.</div>';
+    }
   }
 
   searchPanelInput.addEventListener("input", (e) => {
-    renderSearchResults(e.target.value);
+    if (searchTimeout) clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => renderSearchResults(e.target.value), 300);
   });
 
   searchPanelInput.addEventListener("keydown", (e) => {
@@ -287,30 +377,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const text = msgInput.value.trim();
     if (!text) return;
 
-    addMessage(text, "user");
+    const chat = getActiveChat();
+    if (!chat) return;
+
+    const time = now();
+    addMessageToDOM(text, "user", time);
     msgInput.value = "";
     msgInput.focus();
 
     typingIndicator.classList.add("active");
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    fetch("http://localhost:5555/message", {
+    fetch(`${API_BASE}/message`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: text, model: selectedModel }),
+      body: JSON.stringify({ chat_id: chat.id, message: text, model: selectedModel }),
     })
       .then((res) => res.json())
       .then((data) => {
         typingIndicator.classList.remove("active");
         if (data.error) {
-          addMessage("Hata: " + data.error, "assistant");
+          addMessageToDOM("Hata: " + data.error, "assistant", now());
         } else {
-          addMessage(data.reply || "Yanıt alınamadı.", "assistant");
+          addMessageToDOM(data.reply || "Yanıt alınamadı.", "assistant", now());
+          if (data.chat_title) {
+            chat.title = data.chat_title;
+            renderHistory();
+          }
         }
       })
       .catch(() => {
         typingIndicator.classList.remove("active");
-        addMessage("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant");
+        addMessageToDOM("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant", now());
       });
   }
 
@@ -338,23 +436,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  function addMessage(text, sender) {
-    const chat = getActiveChat();
-    if (!chat) return;
-
-    const time = now();
-    chat.messages.push({ sender, content: text, time });
-
-    if (sender === "user") {
-      const firstUserMsg = chat.messages.find((m) => m.sender === "user");
-      if (firstUserMsg) chat.title = firstUserMsg.content;
-    }
-
-    saveChats();
-    renderHistory();
-    addMessageToDOM(text, sender, time);
   }
 
   sendBtn.addEventListener("click", sendMessage);
@@ -396,7 +477,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const file = fileInput.files[0];
     if (!file) return;
 
-    addMessage(buildFileCard(file.name, file.size), "user");
+    const chat = getActiveChat();
+    if (!chat) return;
+
+    addMessageToDOM(buildFileCard(file.name, file.size), "user", now());
 
     const formData = new FormData();
     formData.append("file", file);
@@ -404,7 +488,7 @@ document.addEventListener("DOMContentLoaded", () => {
     typingIndicator.classList.add("active");
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
-    fetch("http://localhost:5555/upload", {
+    fetch(`${API_BASE}/upload`, {
       method: "POST",
       body: formData,
     })
@@ -412,30 +496,19 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((data) => {
         typingIndicator.classList.remove("active");
         if (data.error) {
-          addMessage("Hata: " + data.error, "assistant");
+          addMessageToDOM("Hata: " + data.error, "assistant", now());
         } else {
-          addMessage(data.reply || "Yanıt alınamadı.", "assistant");
+          addMessageToDOM(data.reply || "Yanıt alınamadı.", "assistant", now());
         }
       })
       .catch(() => {
         typingIndicator.classList.remove("active");
-        addMessage("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant");
+        addMessageToDOM("Sunucuya bağlanılamadı. Lütfen sunucunun çalıştığını kontrol edin.", "assistant", now());
       });
 
     fileInput.value = "";
   });
 
   // ——— Initialize ———
-  loadChats();
-  if (chats.length === 0) {
-    newChat();
-  } else {
-    const chat = getActiveChat() || chats[0];
-    if (chat) {
-      activeChatId = chat.id;
-      saveChats();
-      renderHistory();
-      renderMessages(chat);
-    }
-  }
+  loadChatsFromServer();
 });

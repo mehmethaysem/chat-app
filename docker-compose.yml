@@ -1,0 +1,31 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: chat-app-db
+    environment:
+      POSTGRES_DB: chat_app
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: chat-app-backend
+    ports:
+      - "5555:5555"
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:1234@db:5432/chat_app
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
